@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Curry Kaleidoscope</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Arial', sans-serif;
+      background-color: black;
+      color: white;
+    }
+    #container {
+      padding: 10px;
+      box-sizing: border-box;
+      white-space: normal;
+      word-wrap: break-word;
+    }
+    .palindrome {
+      font-size: 10px;
+      cursor: pointer;
+      transition: color 0.2s;
+      display: inline;
+      margin-right: 4px;
+    }
+    .palindrome:hover {
+      color: #f39c12;
+    }
+  </style>
+</head>
+<body>
+  <div id="container"></div>
+
+  <script>
+    const container = document.getElementById("container");
+    let currentIndex = 0; // 現在のJSONデータのインデックス
+    const batchSize = 917; // 一度に表示する回文の数
+    let palindromes = []; // JSONデータを格納
+
+    // 複数フォーマットの音声ファイルをロード
+    const soundFiles = [];
+    const soundFormats = ['mp3', 'aif', 'wav']; // 対応するフォーマット
+    const numSounds = 15; // 音声ファイルの数
+
+    // 音声ファイルをロード（フォーマットごとに確認）
+    for (let i = 1; i <= numSounds; i++) {
+      let fileLoaded = false;
+      for (const format of soundFormats) {
+        const filePath = `./sound${i}.${format}`;
+        try {
+          const audio = new Audio(filePath);
+          soundFiles.push(audio);
+          fileLoaded = true;
+          console.log(`音声ファイルをロードしました: ${filePath}`);
+          break; // フォーマットが見つかったら次の音声ファイルへ
+        } catch (error) {
+          console.warn(`${filePath} が読み込めませんでした: ${error}`);
+        }
+      }
+      if (!fileLoaded) {
+        console.error(`sound${i} が利用可能なフォーマットで見つかりませんでした`);
+      }
+    }
+
+    // JSONデータをロード
+    fetch('./data.json')
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('ネットワーク応答が正しくありません');
+        }
+        return response.json();
+      })
+      .then(data => {
+        palindromes = data.jp; // JSONデータを保存
+        loadMorePalindromes(); // 初期ロード
+      })
+      .catch(error => {
+        console.error('JSONデータのロード中にエラーが発生しました:', error);
+      });
+
+    // スクロール時にさらに読み込む
+    window.addEventListener("scroll", () => {
+      if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 500) {
+        loadMorePalindromes();
+      }
+    });
+
+    // 回文をロードして表示
+    function loadMorePalindromes() {
+      if (currentIndex >= palindromes.length) return;
+
+      const endIndex = Math.min(currentIndex + batchSize, palindromes.length);
+      for (let i = currentIndex; i < endIndex; i++) {
+        const item = palindromes[i];
+        const span = document.createElement("span");
+        span.className = "palindrome";
+        span.textContent = item.kanji;
+        span.dataset.soundIndex = i % soundFiles.length; // 音声ファイルのインデックスを設定
+        container.appendChild(span);
+
+        // スペースを追加
+        const space = document.createTextNode(' ');
+        container.appendChild(space);
+
+        // 音と視覚効果を追加
+        span.addEventListener("mouseenter", (e) => {
+          console.log(`マウスオーバー: ${span.textContent}`);
+          playSound(span.dataset.soundIndex);
+        });
+        // タッチイベントを追加
+        span.addEventListener("touchstart", (e) => {
+          console.log(`タッチイベント: ${span.textContent}`);
+          playSound(span.dataset.soundIndex);
+        });
+      }
+      currentIndex = endIndex; // 次のインデックスに更新
+    }
+
+    // 音声ファイルを再生
+    function playSound(index) {
+      const sound = soundFiles[index];
+      if (sound) {
+        sound.currentTime = 0; // 再生位置を先頭にリセット
+        sound.play()
+          .then(() => {
+            console.log(`音声を再生しました: ${sound.src}`);
+          })
+          .catch(error => {
+            console.error('音声の再生中にエラーが発生しました:', error);
+          });
+      } else {
+        console.error(`音声ファイルが見つかりません: インデックス ${index}`);
+      }
+    }
+  </script>
+</body>
+</html>
